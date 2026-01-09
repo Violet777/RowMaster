@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>RowMaster by Shawl Serenade</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; touch-action: none; -webkit-user-select: none; }
+        body { background: #0b0b0b; color: #fff; height: 100dvh; width: 100vw; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        canvas { display: block; width: 100vw; height: 100vh; cursor: crosshair; }
+        .side-bar { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 12px; z-index: 100; }
+        .btn { width: 52px; height: 52px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); background: rgba(30, 30, 30, 0.85); color: #fff; font-size: 24px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); box-shadow: 0 4px 15px rgba(0,0,0,0.3); transition: 0.2s; }
+        .btn:active { transform: scale(0.9); background: #9333ea; }
+        .btn.active { background: #9333ea; border-color: #a855f7; box-shadow: 0 0 20px rgba(147, 51, 234, 0.4); }
+        .ui-panel { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); background: rgba(20,20,20,0.95); padding: 18px; border-radius: 24px; display: flex; flex-direction: column; gap: 15px; width: 90%; max-width: 380px; border: 1px solid rgba(255,255,255,0.1); z-index: 110; backdrop-filter: blur(15px); }
+        .row { display: flex; align-items: center; gap: 12px; font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
+        input[type="range"] { flex: 1; accent-color: #9333ea; cursor: pointer; }
+        .colors { display: flex; justify-content: center; gap: 18px; margin-top: 5px; }
+        .color-dot { width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: 0.2s; }
+        .color-dot.active { border-color: #fff; transform: scale(1.2); }
+        #modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+        .modal-box { background: #1a1a1a; padding: 35px; border-radius: 32px; width: 85%; max-width: 340px; text-align: center; border: 1px solid #333; }
+        .kofi-button { display: inline-block; background: #29abe0; color: white; padding: 14px 24px; border-radius: 12px; text-decoration: none; font-weight: bold; width: 100%; transition: 0.3s; }
+    </style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<div class="side-bar">
+    <button class="btn" onclick="app.moveL(-1)">🔼</button>
+    <button class="btn" onclick="app.moveL(1)">🔽</button>
+    <div style="height:10px"></div>
+    <button id="bS" class="btn active" onclick="app.setMode('line')">➖</button>
+    <button id="bD" class="btn" onclick="app.setMode('draw')">✍️</button>
+    <button class="btn" onclick="app.clear()">🗑️</button>
+    <div style="height:10px"></div>
+    <button class="btn" onclick="app.rotate()">🔄</button>
+    <button class="btn" onclick="document.getElementById('fi').click()">📷</button>
+    <button class="btn" onclick="app.openAbout()">⚙️</button>
+</div>
+
+<div class="ui-panel" id="ui">
+    <div class="row">Size <input type="range" id="sizeSlider" min="1" max="60" value="8" oninput="app.updateSize(this.value)"></div>
+    <div class="row">Alpha <input type="range" min="5" max="100" value="80" oninput="app.st.al=this.value/100;app.save()"></div>
+    <div class="colors">
+        <div class="color-dot active" style="background:#9333ea" onclick="app.setColor('#9333ea', this)"></div>
+        <div class="color-dot" style="background:#ef4444" onclick="app.setColor('#ef4444', this)"></div>
+        <div class="color-dot" style="background:#22c55e" onclick="app.setColor('#22c55e', this)"></div>
+        <div class="color-dot" style="background:#3b82f6" onclick="app.setColor('#3b82f6', this)"></div>
+    </div>
+</div>
+
+<input type="file" id="fi" accept="image/*" style="display:none" onchange="app.hFile(this)">
+
+<div id="modal" onclick="if(event.target===this)app.closeAbout()">
+    <div class="modal-box">
+        <h2 style="color:#9333ea; margin-bottom:10px;">Shawl Serenade</h2>
+        <p style="color:#888; font-size:14px; margin-bottom:25px;">This tool is created for knitters to track rows easily. If you enjoy using it, consider supporting the project!</p>
+        <a href="https://ko-fi.com/shawlserenade" target="_blank" class="kofi-button">☕ Support on Ko-fi</a>
+        <button class="btn" style="width:100%; background:none; font-size:13px; margin-top:15px; border:none; color:#555" onclick="app.closeAbout()">Continue Working</button>
+    </div>
+</div>
+
+<script>
+const app = {
+    cvs: document.getElementById('canvas'),
+    ctx: document.getElementById('canvas').getContext('2d'),
+    img: null,
+    fname: '',
+    st: { x:0, y:0, sc:1, rot:0, ly:0, mode:'line', th:8, al:0.8, col:'#9333ea', paths: [] },
+    pointers: new Map(),
+    drag: null,
+    lastD: 0,
+
+    init() {
+        this.resize();
+        window.onresize = () => this.resize();
+        this.cvs.addEventListener('pointerdown', e => this.onDown(e));
+        window.addEventListener('pointermove', e => this.onMove(e));
+        window.addEventListener('pointerup', e => this.onUp(e));
+        this.cvs.addEventListener('wheel', e => { e.preventDefault(); this.doZoom(e.deltaY < 0 ? 1.1 : 0.9, e.clientX, e.clientY); }, {passive: false});
+        
+        window.addEventListener('keydown', e => {
+            if (e.key === 'ArrowUp') { e.preventDefault(); this.moveL(-1); }
+            if (e.key === 'ArrowDown') { e.preventDefault(); this.moveL(1); }
+            // Клавиши + и - для размера
+            if (e.key === '+' || e.key === '=') { this.updateSize(Math.min(60, Number(this.st.th) + 1)); }
+            if (e.key === '-' || e.key === '_') { this.updateSize(Math.max(1, Number(this.st.th) - 1)); }
+        });
+
+        const last = localStorage.getItem('rm_last_f');
+        if (last) this.load(last);
+        this.loop();
+    },
+
+    resize() { this.cvs.width = window.innerWidth; this.cvs.height = window.innerHeight; },
+
+    updateSize(v) {
+        this.st.th = v;
+        document.getElementById('sizeSlider').value = v;
+        this.save();
+    },
+
+    moveL(direction) {
+        // Двигаем линию на её собственную высоту (толщину)
+        this.st.ly += direction * Number(this.st.th);
+        this.save();
+    },
+
+    // ... остальная логика рендеринга и управления (без изменений) ...
+    getMouse(e) { const r = this.cvs.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; },
+    onDown(e) {
+        this.pointers.set(e.pointerId, e);
+        const {x, y} = this.getMouse(e);
+        const ly = this.st.y + this.st.ly;
+        if (this.st.mode === 'draw') {
+            this.drag = 'drawing'; const p = this.toLocal(x, y); this.st.paths.push({ x: p.x, y: p.y, s:true }); return;
+        }
+        if (this.pointers.size === 1) {
+            if (Math.abs(y - ly) < 40) this.drag = 'line'; else this.drag = 'img';
+        } else if (this.pointers.size === 2) {
+            this.drag = 'zoom'; const p = [...this.pointers.values()]; this.lastD = Math.hypot(p[0].clientX - p[1].clientX, p[0].clientY - p[1].clientY);
+        }
+    },
+    onMove(e) {
+        if (!this.pointers.has(e.pointerId)) return;
+        const prev = this.pointers.get(e.pointerId); const curr = this.getMouse(e); this.pointers.set(e.pointerId, e);
+        if (this.drag === 'zoom' && this.pointers.size === 2) {
+            const p = [...this.pointers.values()]; const d = Math.hypot(p[0].clientX - p[1].clientX, p[0].clientY - p[1].clientY);
+            this.doZoom(d / this.lastD, (p[0].clientX+p[1].clientX)/2, (p[0].clientY+p[1].clientY)/2); this.lastD = d; return;
+        }
+        const dx = e.clientX - prev.clientX; const dy = e.clientY - prev.clientY;
+        if (this.drag === 'drawing') { const p = this.toLocal(curr.x, curr.y); this.st.paths.push({ x: p.x, y: p.y }); }
+        else if (this.drag === 'line') { this.st.ly += dy; }
+        else if (this.drag === 'img') { this.st.x += dx; this.st.y += dy; }
+    },
+    toLocal(x, y) {
+        const dx = x - this.st.x; const dy = y - this.st.y; const rad = -this.st.rot * Math.PI / 180;
+        const cos = Math.cos(rad); const sin = Math.sin(rad);
+        return { x: (dx * cos - dy * sin) / this.st.sc, y: (dx * sin + dy * cos) / this.st.sc };
+    },
+    onUp(e) { this.pointers.delete(e.pointerId); this.drag = null; this.save(); },
+    doZoom(f, cx, cy) {
+        const oldS = this.st.sc; this.st.sc = Math.max(0.1, Math.min(20, this.st.sc * f));
+        const ratio = this.st.sc / oldS; this.st.x = cx - (cx - this.st.x) * ratio; this.st.y = cy - (cy - this.st.y) * ratio; this.save();
+    },
+    render() {
+        const { ctx, cvs, st, img } = this;
+        ctx.fillStyle = "#0b0b0b"; ctx.fillRect(0, 0, cvs.width, cvs.height);
+        if (!img) return;
+        ctx.save(); ctx.translate(st.x, st.y); ctx.rotate(st.rot * Math.PI / 180);
+        ctx.drawImage(img, -img.width*st.sc/2, -img.height*st.sc/2, img.width*st.sc, img.height*st.sc);
+        if (st.paths.length > 0) {
+            ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.strokeStyle = st.col; ctx.lineWidth = st.th / st.sc;
+            ctx.globalAlpha = st.al; ctx.beginPath(); st.paths.forEach(p => { if (p.s) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); }); ctx.stroke();
+        }
+        ctx.restore();
+        if (st.mode === 'line') {
+            ctx.globalAlpha = st.al; ctx.strokeStyle = st.col; ctx.lineWidth = st.th; ctx.lineCap = 'round';
+            const ly = st.y + st.ly; ctx.beginPath(); ctx.moveTo(0, ly); ctx.lineTo(cvs.width, ly); ctx.stroke();
+        }
+    },
+    loop() { this.render(); requestAnimationFrame(() => this.loop()); },
+    hFile(input) {
+        const f = input.files[0]; if(!f) return;
+        this.fname = f.name; const r = new FileReader();
+        r.onload = e => {
+            const i = new Image(); i.onload = () => {
+                this.img = i; const sv = localStorage.getItem('prj_' + this.fname);
+                if (sv) Object.assign(this.st, JSON.parse(sv));
+                else { this.st.sc = Math.min(window.innerWidth/i.width, window.innerHeight/i.height) * 0.8; this.st.x = window.innerWidth/2; this.st.y = window.innerHeight/2; this.st.ly = 0; this.st.paths = []; }
+                this.save();
+            }; i.src = e.target.result;
+        }; r.readAsDataURL(f);
+    },
+    save() { if (!this.fname) return; localStorage.setItem('rm_last_f', this.fname); localStorage.setItem('prj_' + this.fname, JSON.stringify(this.st)); if (this.img) localStorage.setItem('img_' + this.fname, this.img.src); },
+    load(name) {
+        const s = localStorage.getItem('prj_' + name);
+        if (s) { this.fname = name; Object.assign(this.st, JSON.parse(s)); const im = localStorage.getItem('img_' + name); if (im) { const i = new Image(); i.onload = () => this.img = i; i.src = im; } }
+    },
+    setMode(m) { this.st.mode = m; document.getElementById('bS').className = 'btn' + (m==='line'?' active':''); document.getElementById('bD').className = 'btn' + (m==='draw'?' active':''); },
+    setColor(c, el) { this.st.col = c; document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active')); el.classList.add('active'); this.save(); },
+    rotate() { this.st.rot = (this.st.rot + 90) % 360; this.save(); },
+    clear() { if(confirm("Clear marker?")) { this.st.paths = []; this.save(); } },
+    openAbout() { document.getElementById('modal').style.display = 'flex'; },
+    closeAbout() { document.getElementById('modal').style.display = 'none'; }
+};
+app.init();
+</script>
+</body>
+</html>
