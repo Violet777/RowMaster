@@ -8,11 +8,32 @@
         * { margin: 0; padding: 0; box-sizing: border-box; touch-action: none; -webkit-user-select: none; }
         body { background: #0b0b0b; color: #fff; height: 100dvh; width: 100vw; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         canvas { display: block; width: 100vw; height: 100vh; cursor: crosshair; }
-        .side-bar { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 12px; z-index: 100; }
-        .btn { width: 52px; height: 52px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); background: rgba(30, 30, 30, 0.85); color: #fff; font-size: 24px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); box-shadow: 0 4px 15px rgba(0,0,0,0.3); transition: 0.2s; }
+        
+        /* Исправленная боковая панель со скроллом */
+        .side-bar { 
+            position: absolute; 
+            right: 15px; 
+            top: 10px; 
+            bottom: 10px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 12px; 
+            z-index: 100; 
+            overflow-y: auto; /* Позволяет крутить кнопки, если они не влезли */
+            padding-right: 5px;
+            scrollbar-width: none; /* Скрываем полосу прокрутки */
+            justify-content: center;
+        }
+        .side-bar::-webkit-scrollbar { display: none; }
+
+        .btn { min-width: 52px; min-height: 52px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); background: rgba(30, 30, 30, 0.85); color: #fff; font-size: 24px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); box-shadow: 0 4px 15px rgba(0,0,0,0.3); transition: 0.2s; flex-shrink: 0; }
         .btn:active { transform: scale(0.9); background: #9333ea; }
         .btn.active { background: #9333ea; border-color: #a855f7; box-shadow: 0 0 20px rgba(147, 51, 234, 0.4); }
-        .ui-panel { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); background: rgba(20,20,20,0.95); padding: 18px; border-radius: 24px; display: flex; flex-direction: column; gap: 15px; width: 90%; max-width: 380px; border: 1px solid rgba(255,255,255,0.1); z-index: 110; backdrop-filter: blur(15px); }
+        
+        /* Панель настроек теперь можно скрывать */
+        .ui-panel { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); background: rgba(20,20,20,0.95); padding: 18px; border-radius: 24px; display: flex; flex-direction: column; gap: 15px; width: 90%; max-width: 380px; border: 1px solid rgba(255,255,255,0.1); z-index: 110; backdrop-filter: blur(15px); transition: 0.3s opacity, 0.3s transform; }
+        .ui-panel.hidden { opacity: 0; transform: translateX(-50%) translateY(100px); pointer-events: none; }
+
         .row { display: flex; align-items: center; gap: 12px; font-size: 11px; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
         input[type="range"] { flex: 1; accent-color: #9333ea; cursor: pointer; }
         .colors { display: flex; justify-content: center; gap: 18px; margin-top: 5px; }
@@ -30,11 +51,12 @@
 <div class="side-bar">
     <button class="btn" onclick="app.moveL(-1)">🔼</button>
     <button class="btn" onclick="app.moveL(1)">🔽</button>
-    <div style="height:10px"></div>
+    <div style="height:5px"></div>
     <button id="bS" class="btn active" onclick="app.setMode('line')">➖</button>
     <button id="bD" class="btn" onclick="app.setMode('draw')">✍️</button>
+    <button class="btn" onclick="app.toggleUI()" id="toggleBtn">👁️</button>
     <button class="btn" onclick="app.clear()">🗑️</button>
-    <div style="height:10px"></div>
+    <div style="height:5px"></div>
     <button class="btn" onclick="app.rotate()">🔄</button>
     <button class="btn" onclick="document.getElementById('fi').click()">📷</button>
     <button class="btn" onclick="app.openAbout()">⚙️</button>
@@ -84,7 +106,6 @@ const app = {
         window.addEventListener('keydown', e => {
             if (e.key === 'ArrowUp') { e.preventDefault(); this.moveL(-1); }
             if (e.key === 'ArrowDown') { e.preventDefault(); this.moveL(1); }
-            // Клавиши + и - для размера
             if (e.key === '+' || e.key === '=') { this.updateSize(Math.min(60, Number(this.st.th) + 1)); }
             if (e.key === '-' || e.key === '_') { this.updateSize(Math.max(1, Number(this.st.th) - 1)); }
         });
@@ -96,6 +117,13 @@ const app = {
 
     resize() { this.cvs.width = window.innerWidth; this.cvs.height = window.innerHeight; },
 
+    toggleUI() {
+        const ui = document.getElementById('ui');
+        const btn = document.getElementById('toggleBtn');
+        ui.classList.toggle('hidden');
+        btn.innerHTML = ui.classList.contains('hidden') ? '👁️‍🗨️' : '👁️';
+    },
+
     updateSize(v) {
         this.st.th = v;
         document.getElementById('sizeSlider').value = v;
@@ -103,13 +131,12 @@ const app = {
     },
 
     moveL(direction) {
-        // Двигаем линию на её собственную высоту (толщину)
-        this.st.ly += direction * Number(this.st.th);
+        this.st.ly += direction * 15; // Фиксированный шаг для кнопок
         this.save();
     },
 
-    // ... остальная логика рендеринга и управления (без изменений) ...
     getMouse(e) { const r = this.cvs.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; },
+    
     onDown(e) {
         this.pointers.set(e.pointerId, e);
         const {x, y} = this.getMouse(e);
@@ -123,6 +150,7 @@ const app = {
             this.drag = 'zoom'; const p = [...this.pointers.values()]; this.lastD = Math.hypot(p[0].clientX - p[1].clientX, p[0].clientY - p[1].clientY);
         }
     },
+
     onMove(e) {
         if (!this.pointers.has(e.pointerId)) return;
         const prev = this.pointers.get(e.pointerId); const curr = this.getMouse(e); this.pointers.set(e.pointerId, e);
@@ -135,16 +163,20 @@ const app = {
         else if (this.drag === 'line') { this.st.ly += dy; }
         else if (this.drag === 'img') { this.st.x += dx; this.st.y += dy; }
     },
+
     toLocal(x, y) {
         const dx = x - this.st.x; const dy = y - this.st.y; const rad = -this.st.rot * Math.PI / 180;
         const cos = Math.cos(rad); const sin = Math.sin(rad);
         return { x: (dx * cos - dy * sin) / this.st.sc, y: (dx * sin + dy * cos) / this.st.sc };
     },
+
     onUp(e) { this.pointers.delete(e.pointerId); this.drag = null; this.save(); },
+
     doZoom(f, cx, cy) {
         const oldS = this.st.sc; this.st.sc = Math.max(0.1, Math.min(20, this.st.sc * f));
         const ratio = this.st.sc / oldS; this.st.x = cx - (cx - this.st.x) * ratio; this.st.y = cy - (cy - this.st.y) * ratio; this.save();
     },
+
     render() {
         const { ctx, cvs, st, img } = this;
         ctx.fillStyle = "#0b0b0b"; ctx.fillRect(0, 0, cvs.width, cvs.height);
@@ -161,7 +193,9 @@ const app = {
             const ly = st.y + st.ly; ctx.beginPath(); ctx.moveTo(0, ly); ctx.lineTo(cvs.width, ly); ctx.stroke();
         }
     },
+
     loop() { this.render(); requestAnimationFrame(() => this.loop()); },
+
     hFile(input) {
         const f = input.files[0]; if(!f) return;
         this.fname = f.name; const r = new FileReader();
@@ -174,11 +208,13 @@ const app = {
             }; i.src = e.target.result;
         }; r.readAsDataURL(f);
     },
+
     save() { if (!this.fname) return; localStorage.setItem('rm_last_f', this.fname); localStorage.setItem('prj_' + this.fname, JSON.stringify(this.st)); if (this.img) localStorage.setItem('img_' + this.fname, this.img.src); },
     load(name) {
         const s = localStorage.getItem('prj_' + name);
         if (s) { this.fname = name; Object.assign(this.st, JSON.parse(s)); const im = localStorage.getItem('img_' + name); if (im) { const i = new Image(); i.onload = () => this.img = i; i.src = im; } }
     },
+
     setMode(m) { this.st.mode = m; document.getElementById('bS').className = 'btn' + (m==='line'?' active':''); document.getElementById('bD').className = 'btn' + (m==='draw'?' active':''); },
     setColor(c, el) { this.st.col = c; document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active')); el.classList.add('active'); this.save(); },
     rotate() { this.st.rot = (this.st.rot + 90) % 360; this.save(); },
