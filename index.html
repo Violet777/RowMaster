@@ -157,7 +157,7 @@ const app = {
 
         if (this.st.mode === 'text') {
             setTimeout(() => {
-                const txt = prompt("Заметка:");
+                const txt = prompt("Note:");
                 if (txt) {
                     this.st.notes.push({ x: p.x, y: p.y, t: txt, c: this.st.col });
                     this.save();
@@ -254,8 +254,8 @@ const app = {
     },
     
     saveAsFile() {
-        if (!this.rawImgData) { alert("Сначала загрузите картинку!"); return; }
-        const name = prompt("Название сохранения:");
+        if (!this.rawImgData) { alert("Please load an image first!"); return; }
+        const name = prompt("Save name:");
         if (!name) return;
         let docClone = document.documentElement.cloneNode(true);
         let loaderScript = docClone.querySelector('#app-state-loader');
