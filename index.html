@@ -15,8 +15,10 @@
             justify-content: center; width: 50px; transition: opacity 0.3s;
         }
 
+        /* Убрано скрытие слотов в ландшафте, теперь они адаптируются */
         @media (orientation: landscape) and (max-height: 500px) {
-            .side-bar, .ui-panel, .tabs-bar { opacity: 0; pointer-events: none; }
+            .side-bar, .ui-panel { opacity: 0.5; }
+            .side-bar:hover, .ui-panel:hover { opacity: 1; }
         }
 
         .btn { 
@@ -38,6 +40,7 @@
 
         .tabs-bar {
             height: 50px; background: #1a1a1a; display: flex; border-top: 1px solid #333; z-index: 120;
+            padding-bottom: env(safe-area-inset-bottom); /* Поддержка челок и вырезов */
         }
         .tab {
             flex: 1; display: flex; align-items: center; justify-content: center;
@@ -95,7 +98,7 @@
     </div>
 </div>
 
-<div class="tabs-bar">
+<div class="tabs-bar" id="tabs">
     <div id="tab0" class="tab active" onclick="app.switchSlot(0)">Slot 1</div>
     <div id="tab1" class="tab" onclick="app.switchSlot(1)">Slot 2</div>
     <div id="tab2" class="tab" onclick="app.switchSlot(2)">Slot 3</div>
@@ -121,13 +124,13 @@ const app = {
     cvs: document.getElementById('canvas'),
     ctx: document.getElementById('canvas').getContext('2d'),
     img: null, fname: '', rawImgData: null,
-    currentSlot: 0,
+    currentSlot: 0, wakeLock: null,
     st: { x:0, y:0, sc:1, rot:0, ly:0, mode:'line', th:8, alpha:0.7, col:'#9333ea', paths: [], notes: [] },
     pointers: new Map(), drag: null, lastD: 0,
 
     init() {
         this.resize();
-        window.onresize = () => this.resize();
+        window.onresize = () => this.onResize();
         this.cvs.addEventListener('pointerdown', e => this.onDown(e));
         window.addEventListener('pointermove', e => this.onMove(e));
         window.addEventListener('pointerup', () => { this.pointers.clear(); this.drag = null; this.save(); });
@@ -150,7 +153,45 @@ const app = {
         this.loop();
     },
 
-    resize() { this.cvs.width = window.innerWidth; this.cvs.height = window.innerHeight - 50; },
+    onResize() {
+        const oldW = this.cvs.width, oldH = this.cvs.height;
+        this.resize();
+        if (this.img) {
+            // Центрируем при повороте
+            this.st.x = this.cvs.width / 2;
+            this.st.y = this.cvs.height / 2;
+        }
+    },
+
+    resize() { 
+        this.cvs.width = window.innerWidth; 
+        this.cvs.height = window.innerHeight - document.getElementById('tabs').offsetHeight; 
+    },
+
+    async toggleUI() {
+        const ui = document.getElementById('ui');
+        ui.classList.toggle('hidden');
+        
+        // Попытка войти в полноэкранный режим при скрытии UI
+        if (ui.classList.contains('hidden')) {
+            try {
+                if (!document.fullscreenElement) {
+                    await document.documentElement.requestFullscreen();
+                }
+                if ('wakeLock' in navigator) {
+                    this.wakeLock = await navigator.wakeLock.request('screen');
+                }
+            } catch (err) {}
+        } else {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            }
+            if (this.wakeLock) {
+                this.wakeLock.release();
+                this.wakeLock = null;
+            }
+        }
+    },
 
     hideKeyboard() {
         if (document.activeElement && document.activeElement.tagName !== 'BODY') document.activeElement.blur();
@@ -160,25 +201,17 @@ const app = {
     switchSlot(idx) {
         if (this.currentSlot === idx) return;
         this.save();
-        
         this.currentSlot = idx;
         document.querySelectorAll('.tab').forEach((t, i) => t.className = i === idx ? 'tab active' : 'tab');
-
         const saved = localStorage.getItem('slot_' + idx);
         if (saved) {
             const data = JSON.parse(saved);
             this.st = data.st;
             this.rawImgData = data.img;
             this.fname = data.name;
-            if (this.rawImgData) {
-                const i = new Image();
-                i.onload = () => { this.img = i; this.updateUIFromState(); };
-                i.src = this.rawImgData;
-            } else {
-                this.img = null;
-            }
+            if (this.rawImgData) this.loadImg(this.rawImgData); else this.img = null;
         } else {
-            this.st = { x:0, y:0, sc:1, rot:0, ly:0, mode:'line', th:8, alpha:0.7, col:'#9333ea', paths: [], notes: [] };
+            this.st = { x:this.cvs.width/2, y:this.cvs.height/2, sc:1, rot:0, ly:0, mode:'line', th:8, alpha:0.7, col:'#9333ea', paths: [], notes: [] };
             this.img = null; this.rawImgData = null; this.fname = '';
         }
         this.setMode(this.st.mode);
@@ -289,7 +322,6 @@ const app = {
 
     loop() { this.render(); requestAnimationFrame(() => this.loop()); },
     save() { localStorage.setItem('slot_' + this.currentSlot, JSON.stringify({st: this.st, img: this.rawImgData, name: this.fname})); },
-    toggleUI() { document.getElementById('ui').classList.toggle('hidden'); },
     showKofi() { document.getElementById('kofi-modal').style.display = 'flex'; },
     setMode(m) { this.st.mode = m; document.getElementById('bL').className = 'btn'+(m==='line'?' active':''); document.getElementById('bD').className = 'btn'+(m==='draw'?' active':''); document.getElementById('bT').className = 'btn'+(m==='text'?' active':''); },
     updateSize(v) { this.st.th = v; this.save(); },
