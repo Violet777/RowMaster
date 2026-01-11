@@ -46,18 +46,21 @@
         }
         .tab.active { background: #262626; color: #9333ea; border-bottom: 2px solid #9333ea; }
 
-        /* Modal windows */
         .modal {
             position: fixed; inset: 0; background: rgba(0,0,0,0.85);
             display: none; align-items: center; justify-content: center; z-index: 300; padding: 20px;
         }
         .modal-content {
             background: #1a1a1a; padding: 25px; border-radius: 24px;
-            border: 1px solid #333; max-width: 400px; max-height: 80vh; overflow-y: auto;
+            border: 1px solid #333; max-width: 400px; max-height: 85vh; overflow-y: auto;
         }
-        .help-section { text-align: left; font-size: 13px; line-height: 1.5; margin-bottom: 20px; }
+        .help-section { text-align: left; font-size: 13px; line-height: 1.5; margin-bottom: 10px; }
         .help-section h4 { color: #9333ea; margin: 15px 0 5px 0; border-bottom: 1px solid #333; padding-bottom: 3px; }
-        .help-section ul { padding-left: 18px; color: #ccc; }
+        .help-section ul { padding-left: 18px; color: #ccc; margin-bottom: 10px; }
+        .warn-box { 
+            background: rgba(239, 68, 68, 0.15); padding: 12px; border-radius: 12px; 
+            border: 1px solid #ef4444; margin-bottom: 15px; color: #fff;
+        }
 
         .row { display: flex; align-items: center; gap: 10px; font-size: 10px; color: #aaa; text-transform: uppercase; }
         input[type="range"] { flex: 1; accent-color: #9333ea; }
@@ -106,23 +109,29 @@
 <div id="help-modal" class="modal" onclick="this.style.display='none'">
     <div class="modal-content" onclick="event.stopPropagation()">
         <div class="help-section">
+            <div class="warn-box">
+                <p><b>RU:</b> Очистка кеша браузера удалит данные в слотах! Используйте <b>💾 (Дискета)</b> для сохранения проекта в файл.</p>
+                <hr style="margin:8px 0; border:0; border-top:1px solid rgba(255,255,255,0.1);">
+                <p><b>EN:</b> Clearing browser cache will delete slot data! Use <b>💾 (Floppy)</b> to save your project as a permanent file.</p>
+            </div>
+
             <h4>РУКОВОДСТВО (RU)</h4>
             <ul>
-                <li><b>Слоты 1-3</b>: работайте с 3 схемами сразу.</li>
-                <li><b>👁️ Глаз</b>: полный экран + запрет гаснуть.</li>
-                <li><b>💾 Дискета</b>: сохранить проект в файл.</li>
-                <li><b>➖ / ✍️ / T</b>: линия ряда, рисование и заметки.</li>
+                <li><b>Слоты 1-3</b>: работа с 3 схемами сразу.</li>
+                <li><b>👁️ Глаз</b>: весь экран + не гаснет дисплей.</li>
+                <li><b>💾 Дискета</b>: скачать проект (вечный архив).</li>
+                <li><b>➖ / ✍️ / T</b>: линия, рисование, заметки.</li>
                 <li><b>🗑️ Корзина</b>: очистка рисунков или всего.</li>
                 <li><b>📷 Камера</b>: загрузить схему в слот.</li>
             </ul>
-            <h4>MANUAL (EN)</h4>
+
+            <h4>USER MANUAL (EN)</h4>
             <ul>
-                <li><b>Slots 1-3</b>: 3 patterns at once.</li>
-                <li><b>👁️ Eye</b>: Fullscreen + Wake Lock.</li>
-                <li><b>💾 Floppy</b>: Save project to file.</li>
-                <li><b>➖ / ✍️ / T</b>: Row line, draw, or notes.</li>
-                <li><b>🗑️ Trash</b>: Clear layers or everything.</li>
-                <li><b>📷 Camera</b>: Upload pattern to slot.</li>
+                <li><b>Slots 1-3</b>: 3 patterns simultaneously.</li>
+                <li><b>👁️ Eye</b>: Fullscreen + Screen Wake Lock.</li>
+                <li><b>💾 Floppy</b>: Download project (Permanent).</li>
+                <li><b>➖ / ✍️ / T</b>: Row line, draw, or text notes.</li>
+                <li><b>🗑️ Trash</b>: Clear drawings or everything.</li>
             </ul>
         </div>
         <button class="btn" style="width:100%" onclick="document.getElementById('help-modal').style.display='none'">OK</button>
@@ -132,7 +141,6 @@
 <div id="kofi-modal" class="modal" onclick="this.style.display='none'">
     <div class="modal-content" onclick="event.stopPropagation()">
         <h3 style="margin-bottom:10px; text-align:center">Support Project</h3>
-        <p style="font-size:14px; color:#aaa; text-align:center">If you like RowMaster, you can buy me a coffee!</p>
         <button style="background:#ff5f5f; color:white; border:none; padding:12px; width:100%; border-radius:50px; margin-top:15px; font-weight:bold;" onclick="window.open('https://ko-fi.com/shawlserenade', '_blank')">❤️ Ko-fi</button>
     </div>
 </div>
@@ -194,8 +202,7 @@ const app = {
 
     switchSlot(idx) {
         if (this.currentSlot === idx) return;
-        this.save();
-        this.currentSlot = idx;
+        this.save(); this.currentSlot = idx;
         document.querySelectorAll('.tab').forEach((t, i) => t.className = i === idx ? 'tab active' : 'tab');
         const saved = localStorage.getItem('slot_' + idx);
         if (saved) {
