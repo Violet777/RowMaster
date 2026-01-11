@@ -15,10 +15,8 @@
             justify-content: center; width: 50px; transition: opacity 0.3s;
         }
 
-        /* Убрано скрытие слотов в ландшафте, теперь они адаптируются */
         @media (orientation: landscape) and (max-height: 500px) {
             .side-bar, .ui-panel { opacity: 0.5; }
-            .side-bar:hover, .ui-panel:hover { opacity: 1; }
         }
 
         .btn { 
@@ -40,7 +38,7 @@
 
         .tabs-bar {
             height: 50px; background: #1a1a1a; display: flex; border-top: 1px solid #333; z-index: 120;
-            padding-bottom: env(safe-area-inset-bottom); /* Поддержка челок и вырезов */
+            padding-bottom: env(safe-area-inset-bottom);
         }
         .tab {
             flex: 1; display: flex; align-items: center; justify-content: center;
@@ -48,24 +46,24 @@
         }
         .tab.active { background: #262626; color: #9333ea; border-bottom: 2px solid #9333ea; }
 
+        /* Modal windows */
+        .modal {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+            display: none; align-items: center; justify-content: center; z-index: 300; padding: 20px;
+        }
+        .modal-content {
+            background: #1a1a1a; padding: 25px; border-radius: 24px;
+            border: 1px solid #333; max-width: 400px; max-height: 80vh; overflow-y: auto;
+        }
+        .help-section { text-align: left; font-size: 13px; line-height: 1.5; margin-bottom: 20px; }
+        .help-section h4 { color: #9333ea; margin: 15px 0 5px 0; border-bottom: 1px solid #333; padding-bottom: 3px; }
+        .help-section ul { padding-left: 18px; color: #ccc; }
+
         .row { display: flex; align-items: center; gap: 10px; font-size: 10px; color: #aaa; text-transform: uppercase; }
         input[type="range"] { flex: 1; accent-color: #9333ea; }
         .colors { display: flex; justify-content: center; gap: 12px; }
         .color-dot { width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
         .color-dot.active { border-color: #fff; transform: scale(1.1); }
-
-        #kofi-modal {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.8);
-            display: none; align-items: center; justify-content: center; z-index: 200;
-        }
-        .kofi-content {
-            background: #1a1a1a; padding: 25px; border-radius: 24px; text-align: center;
-            border: 1px solid #333; max-width: 280px;
-        }
-        .kofi-btn {
-            background: #ff5f5f; color: white; border: none; padding: 12px 24px;
-            border-radius: 50px; margin-top: 15px; font-weight: bold; cursor: pointer; font-size: 16px;
-        }
     </style>
 </head>
 <body>
@@ -73,6 +71,7 @@
 <canvas id="canvas"></canvas>
 
 <div class="side-bar" id="sidebar">
+    <button class="btn" onclick="app.showHelp()">?</button>
     <button id="bT" class="btn" onclick="app.setMode('text')">T</button>
     <button class="btn" onclick="app.saveAsFile()">💾</button>
     <div style="height:2px"></div>
@@ -83,7 +82,7 @@
     <div style="height:2px"></div>
     <button class="btn" onclick="app.rotate()">🔄</button>
     <button class="btn" onclick="document.getElementById('fi').click()">📷</button>
-    <button class="btn" onclick="app.showKofi()">⚙️</button>
+    <button class="btn" onclick="document.getElementById('kofi-modal').style.display='flex'">⚙️</button>
 </div>
 
 <div class="ui-panel" id="ui">
@@ -104,19 +103,44 @@
     <div id="tab2" class="tab" onclick="app.switchSlot(2)">Slot 3</div>
 </div>
 
-<div id="kofi-modal" onclick="this.style.display='none'">
-    <div class="kofi-content" onclick="event.stopPropagation()">
-        <h3 style="margin-bottom:10px">Support Project</h3>
-        <p style="font-size:14px; color:#aaa">If you like RowMaster, you can buy me a coffee!</p>
-        <button class="kofi-btn" onclick="window.open('https://ko-fi.com/shawlserenade', '_blank')">❤️ Ko-fi</button>
+<div id="help-modal" class="modal" onclick="this.style.display='none'">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <div class="help-section">
+            <h4>РУКОВОДСТВО (RU)</h4>
+            <ul>
+                <li><b>Слоты 1-3</b>: работайте с 3 схемами сразу.</li>
+                <li><b>👁️ Глаз</b>: полный экран + запрет гаснуть.</li>
+                <li><b>💾 Дискета</b>: сохранить проект в файл.</li>
+                <li><b>➖ / ✍️ / T</b>: линия ряда, рисование и заметки.</li>
+                <li><b>🗑️ Корзина</b>: очистка рисунков или всего.</li>
+                <li><b>📷 Камера</b>: загрузить схему в слот.</li>
+            </ul>
+            <h4>MANUAL (EN)</h4>
+            <ul>
+                <li><b>Slots 1-3</b>: 3 patterns at once.</li>
+                <li><b>👁️ Eye</b>: Fullscreen + Wake Lock.</li>
+                <li><b>💾 Floppy</b>: Save project to file.</li>
+                <li><b>➖ / ✍️ / T</b>: Row line, draw, or notes.</li>
+                <li><b>🗑️ Trash</b>: Clear layers or everything.</li>
+                <li><b>📷 Camera</b>: Upload pattern to slot.</li>
+            </ul>
+        </div>
+        <button class="btn" style="width:100%" onclick="document.getElementById('help-modal').style.display='none'">OK</button>
+    </div>
+</div>
+
+<div id="kofi-modal" class="modal" onclick="this.style.display='none'">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <h3 style="margin-bottom:10px; text-align:center">Support Project</h3>
+        <p style="font-size:14px; color:#aaa; text-align:center">If you like RowMaster, you can buy me a coffee!</p>
+        <button style="background:#ff5f5f; color:white; border:none; padding:12px; width:100%; border-radius:50px; margin-top:15px; font-weight:bold;" onclick="window.open('https://ko-fi.com/shawlserenade', '_blank')">❤️ Ko-fi</button>
     </div>
 </div>
 
 <input type="file" id="fi" accept="image/*" style="display:none" onchange="app.hFile(this)">
 
 <script id="app-state-loader">
-    window.PRELOADED_STATE = null; 
-    window.PRELOADED_IMAGE = null; 
+    window.PRELOADED_STATE = null; window.PRELOADED_IMAGE = null; 
 </script>
 
 <script>
@@ -137,66 +161,36 @@ const app = {
         this.cvs.addEventListener('wheel', e => { e.preventDefault(); this.doZoom(e.deltaY < 0 ? 1.1 : 0.9, e.clientX, e.clientY); }, {passive: false});
         
         if (window.PRELOADED_STATE && window.PRELOADED_IMAGE) {
-            this.st = window.PRELOADED_STATE;
-            this.rawImgData = window.PRELOADED_IMAGE;
-            this.loadImg(this.rawImgData);
+            this.st = window.PRELOADED_STATE; this.rawImgData = window.PRELOADED_IMAGE; this.loadImg(this.rawImgData);
         } else {
             const saved = localStorage.getItem('slot_0');
             if (saved) {
                 const data = JSON.parse(saved);
-                this.st = data.st;
-                this.rawImgData = data.img;
-                this.fname = data.name;
+                this.st = data.st; this.rawImgData = data.img; this.fname = data.name;
                 if (this.rawImgData) this.loadImg(this.rawImgData);
             }
         }
         this.loop();
     },
 
-    onResize() {
-        const oldW = this.cvs.width, oldH = this.cvs.height;
-        this.resize();
-        if (this.img) {
-            // Центрируем при повороте
-            this.st.x = this.cvs.width / 2;
-            this.st.y = this.cvs.height / 2;
-        }
-    },
-
-    resize() { 
-        this.cvs.width = window.innerWidth; 
-        this.cvs.height = window.innerHeight - document.getElementById('tabs').offsetHeight; 
-    },
+    onResize() { this.resize(); if (this.img) { this.st.x = this.cvs.width / 2; this.st.y = this.cvs.height / 2; } },
+    resize() { this.cvs.width = window.innerWidth; this.cvs.height = window.innerHeight - document.getElementById('tabs').offsetHeight; },
 
     async toggleUI() {
-        const ui = document.getElementById('ui');
-        ui.classList.toggle('hidden');
-        
-        // Попытка войти в полноэкранный режим при скрытии UI
+        const ui = document.getElementById('ui'); ui.classList.toggle('hidden');
         if (ui.classList.contains('hidden')) {
             try {
-                if (!document.fullscreenElement) {
-                    await document.documentElement.requestFullscreen();
-                }
-                if ('wakeLock' in navigator) {
-                    this.wakeLock = await navigator.wakeLock.request('screen');
-                }
+                if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+                if ('wakeLock' in navigator) this.wakeLock = await navigator.wakeLock.request('screen');
             } catch (err) {}
         } else {
-            if (document.fullscreenElement) {
-                document.exitFullscreen();
-            }
-            if (this.wakeLock) {
-                this.wakeLock.release();
-                this.wakeLock = null;
-            }
+            if (document.fullscreenElement) document.exitFullscreen();
+            if (this.wakeLock) { this.wakeLock.release(); this.wakeLock = null; }
         }
     },
 
-    hideKeyboard() {
-        if (document.activeElement && document.activeElement.tagName !== 'BODY') document.activeElement.blur();
-        const s = window.getSelection(); if (s) s.removeAllRanges();
-    },
+    showHelp() { document.getElementById('help-modal').style.display = 'flex'; },
+    hideKeyboard() { if (document.activeElement && document.activeElement.tagName !== 'BODY') document.activeElement.blur(); const s = window.getSelection(); if (s) s.removeAllRanges(); },
 
     switchSlot(idx) {
         if (this.currentSlot === idx) return;
@@ -205,11 +199,10 @@ const app = {
         document.querySelectorAll('.tab').forEach((t, i) => t.className = i === idx ? 'tab active' : 'tab');
         const saved = localStorage.getItem('slot_' + idx);
         if (saved) {
-            const data = JSON.parse(saved);
-            this.st = data.st;
-            this.rawImgData = data.img;
-            this.fname = data.name;
-            if (this.rawImgData) this.loadImg(this.rawImgData); else this.img = null;
+            const data = JSON.parse(saved); this.st = data.st; this.rawImgData = data.img; this.fname = data.name;
+            if (this.rawImgData) {
+                const i = new Image(); i.onload = () => { this.img = i; this.updateUIFromState(); }; i.src = this.rawImgData;
+            } else this.img = null;
         } else {
             this.st = { x:this.cvs.width/2, y:this.cvs.height/2, sc:1, rot:0, ly:0, mode:'line', th:8, alpha:0.7, col:'#9333ea', paths: [], notes: [] };
             this.img = null; this.rawImgData = null; this.fname = '';
@@ -223,19 +216,14 @@ const app = {
             this.img = i; 
             if (!this.st.sc || this.st.sc === 1) {
                 this.st.sc = Math.min(this.cvs.width/i.width, this.cvs.height/i.height)*0.8;
-                this.st.x = this.cvs.width/2;
-                this.st.y = this.cvs.height/2;
+                this.st.x = this.cvs.width/2; this.st.y = this.cvs.height/2;
             }
             this.updateUIFromState(); 
         };
         i.src = data;
     },
 
-    updateUIFromState() {
-        document.getElementById('sizeInp').value = this.st.th;
-        document.getElementById('alphaInp').value = this.st.alpha;
-    },
-
+    updateUIFromState() { document.getElementById('sizeInp').value = this.st.th; document.getElementById('alphaInp').value = this.st.alpha; },
     toLocal(ex, ey) {
         const dx = ex - this.st.x, dy = ey - this.st.y;
         const ang = -this.st.rot * Math.PI / 180;
@@ -247,20 +235,17 @@ const app = {
         this.pointers.set(e.pointerId, e);
         const p = this.toLocal(e.clientX, e.clientY);
         this.hideKeyboard();
-
         if (this.st.mode === 'text') {
             setTimeout(() => {
                 const txt = prompt("Note:");
                 if (txt) { this.st.notes.push({ x: p.x, y: p.y, t: txt, c: this.st.col }); this.save(); }
-                this.setMode('line');
-                this.hideKeyboard();
+                this.setMode('line'); this.hideKeyboard();
             }, 50);
         } else if (this.st.mode === 'draw') {
             this.drag = 'drawing';
             this.st.paths.push({ x: p.x, y: p.y, s: true, col: this.st.col, th: this.st.th / this.st.sc, alpha: this.st.alpha });
         } else if (this.pointers.size === 1) {
-            const lineY = this.st.y + this.st.ly;
-            this.drag = Math.abs(e.clientY - lineY) < 35 ? 'line' : 'img';
+            this.drag = Math.abs(e.clientY - (this.st.y + this.st.ly)) < 35 ? 'line' : 'img';
         } else {
             this.drag = 'zoom';
             const pts = [...this.pointers.values()];
@@ -273,11 +258,9 @@ const app = {
         const prev = this.pointers.get(e.pointerId);
         this.pointers.set(e.pointerId, e);
         if (this.drag === 'drawing') {
-            const p = this.toLocal(e.clientX, e.clientY);
-            this.st.paths.push({ x: p.x, y: p.y });
+            const p = this.toLocal(e.clientX, e.clientY); this.st.paths.push({ x: p.x, y: p.y });
         } else if (this.drag === 'img') {
-            this.st.x += e.clientX - prev.clientX;
-            this.st.y += e.clientY - prev.clientY;
+            this.st.x += e.clientX - prev.clientX; this.st.y += e.clientY - prev.clientY;
         } else if (this.drag === 'line') {
             this.st.ly += e.clientY - prev.clientY;
         } else if (this.drag === 'zoom' && this.pointers.size === 2) {
@@ -289,11 +272,9 @@ const app = {
     },
 
     doZoom(f, cx, cy) {
-        const oldS = this.st.sc;
-        this.st.sc = Math.max(0.1, Math.min(20, this.st.sc * f));
+        const oldS = this.st.sc; this.st.sc = Math.max(0.1, Math.min(20, this.st.sc * f));
         const ratio = this.st.sc / oldS;
-        this.st.x = cx - (cx - this.st.x) * ratio;
-        this.st.y = cy - (cy - this.st.y) * ratio;
+        this.st.x = cx - (cx - this.st.x) * ratio; this.st.y = cy - (cy - this.st.y) * ratio;
         this.save();
     },
 
@@ -302,13 +283,12 @@ const app = {
         ctx.fillStyle = "#0b0b0b"; ctx.fillRect(0,0,cvs.width,cvs.height);
         if (!img) return;
         ctx.save();
-        ctx.translate(st.x, st.y);
-        ctx.rotate(st.rot * Math.PI / 180);
+        ctx.translate(st.x, st.y); ctx.rotate(st.rot * Math.PI / 180);
         ctx.drawImage(img, -img.width*st.sc/2, -img.height*st.sc/2, img.width*st.sc, img.height*st.sc);
         ctx.lineJoin = 'round'; ctx.lineCap = 'round';
         st.paths.forEach((p, i) => {
             if (p.s) { ctx.beginPath(); ctx.strokeStyle = p.col; ctx.globalAlpha = p.alpha || 0.7; ctx.lineWidth = p.th * st.sc; ctx.moveTo(p.x * st.sc, p.y * st.sc); }
-            else { ctx.lineTo(p.x * st.sc, p.y * st.sc); if (!st.paths[i+1] || st.paths[i+1].s) { ctx.stroke(); } }
+            else { ctx.lineTo(p.x * st.sc, p.y * st.sc); if (!st.paths[i+1] || st.paths[i+1].s) ctx.stroke(); }
         });
         ctx.globalAlpha = 1; ctx.font = "bold 18px sans-serif";
         st.notes.forEach(n => { ctx.fillStyle = n.c; ctx.fillText(n.t, n.x * st.sc, n.y * st.sc); });
@@ -322,14 +302,13 @@ const app = {
 
     loop() { this.render(); requestAnimationFrame(() => this.loop()); },
     save() { localStorage.setItem('slot_' + this.currentSlot, JSON.stringify({st: this.st, img: this.rawImgData, name: this.fname})); },
-    showKofi() { document.getElementById('kofi-modal').style.display = 'flex'; },
     setMode(m) { this.st.mode = m; document.getElementById('bL').className = 'btn'+(m==='line'?' active':''); document.getElementById('bD').className = 'btn'+(m==='draw'?' active':''); document.getElementById('bT').className = 'btn'+(m==='text'?' active':''); },
     updateSize(v) { this.st.th = v; this.save(); },
     setColor(c, el) { this.st.col = c; document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active')); el.classList.add('active'); this.save(); },
     rotate() { this.st.rot = (this.st.rot + 90) % 360; this.save(); },
     
     clear() { 
-        const choice = prompt("What to clear?\n1 - All\n2 - Drawings only\n3 - Notes only\n(Enter the number or press Cancel)");
+        const choice = prompt("What to clear?\n1 - All\n2 - Drawings only\n3 - Notes only");
         if (choice === "1") { this.st.paths = []; this.st.notes = []; }
         else if (choice === "2") { this.st.paths = []; }
         else if (choice === "3") { this.st.notes = []; }
@@ -337,7 +316,7 @@ const app = {
     },
     
     saveAsFile() {
-        if (!this.rawImgData) { alert("Please load an image first!"); return; }
+        if (!this.rawImgData) { alert("Load image first!"); return; }
         const name = prompt("Save name:"); if (!name) return;
         let docClone = document.documentElement.cloneNode(true);
         docClone.querySelector('#app-state-loader').textContent = `window.PRELOADED_STATE = ${JSON.stringify(this.st)}; window.PRELOADED_IMAGE = "${this.rawImgData}";`;
@@ -348,8 +327,7 @@ const app = {
     hFile(input) {
         const f = input.files[0]; if (!f) return;
         this.fname = f.name;
-        const r = new FileReader();
-        r.onload = e => { this.rawImgData = e.target.result; this.loadImg(this.rawImgData); this.save(); };
+        const r = new FileReader(); r.onload = e => { this.rawImgData = e.target.result; this.loadImg(this.rawImgData); this.save(); };
         r.readAsDataURL(f);
     }
 };
