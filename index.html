@@ -241,7 +241,7 @@ const app = {
     rotate() { this.st.rot = (this.st.rot + 90) % 360; this.save(); },
     
     clear() { 
-        const choice = prompt("Что очистить?\n1 - Всё\n2 - Только рисунки\n3 - Только заметки\n(Введите цифру или нажмите Отмена)");
+        const choice = prompt("What to clear?\n1 - All\n2 - Drawings only\n3 - Notes only\n(Enter the number or press Cancel)");
         if (choice === "1") {
             this.st.paths = [];
             this.st.notes = [];
