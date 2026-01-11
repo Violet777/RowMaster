@@ -6,17 +6,17 @@
     <title>RowMaster Pro</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; touch-action: none; -webkit-user-select: none; }
-        body { background: #0b0b0b; color: #fff; height: 100dvh; width: 100vw; overflow: hidden; font-family: sans-serif; }
-        canvas { display: block; width: 100vw; height: 100vh; cursor: crosshair; }
+        body { background: #0b0b0b; color: #fff; height: 100dvh; width: 100vw; overflow: hidden; font-family: sans-serif; display: flex; flex-direction: column; }
+        canvas { display: block; width: 100vw; flex-grow: 1; cursor: crosshair; }
 
         .side-bar { 
-            position: absolute; right: 10px; top: 10px; bottom: 10px; 
+            position: absolute; right: 10px; top: 10px; bottom: 70px; 
             display: flex; flex-direction: column; gap: 8px; z-index: 100; 
             justify-content: center; width: 50px; transition: opacity 0.3s;
         }
 
         @media (orientation: landscape) and (max-height: 500px) {
-            .side-bar, .ui-panel { opacity: 0; pointer-events: none; }
+            .side-bar, .ui-panel, .tabs-bar { opacity: 0; pointer-events: none; }
         }
 
         .btn { 
@@ -29,12 +29,21 @@
         .btn.active { background: #9333ea; border-color: #a855f7; }
         
         .ui-panel { 
-            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); 
+            position: absolute; bottom: 70px; left: 50%; transform: translateX(-50%); 
             background: rgba(20,20,20,0.95); padding: 15px; border-radius: 20px; 
             display: flex; flex-direction: column; gap: 12px; width: 85%; max-width: 320px; 
             border: 1px solid rgba(255,255,255,0.1); z-index: 110; transition: 0.3s; 
         }
         .ui-panel.hidden { opacity: 0; transform: translateX(-50%) translateY(100px); pointer-events: none; }
+
+        .tabs-bar {
+            height: 50px; background: #1a1a1a; display: flex; border-top: 1px solid #333; z-index: 120;
+        }
+        .tab {
+            flex: 1; display: flex; align-items: center; justify-content: center;
+            font-size: 12px; color: #888; border-right: 1px solid #333; text-transform: uppercase; font-weight: bold;
+        }
+        .tab.active { background: #262626; color: #9333ea; border-bottom: 2px solid #9333ea; }
 
         .row { display: flex; align-items: center; gap: 10px; font-size: 10px; color: #aaa; text-transform: uppercase; }
         input[type="range"] { flex: 1; accent-color: #9333ea; }
@@ -57,6 +66,7 @@
     </style>
 </head>
 <body>
+
 <canvas id="canvas"></canvas>
 
 <div class="side-bar" id="sidebar">
@@ -85,6 +95,12 @@
     </div>
 </div>
 
+<div class="tabs-bar">
+    <div id="tab0" class="tab active" onclick="app.switchSlot(0)">Slot 1</div>
+    <div id="tab1" class="tab" onclick="app.switchSlot(1)">Slot 2</div>
+    <div id="tab2" class="tab" onclick="app.switchSlot(2)">Slot 3</div>
+</div>
+
 <div id="kofi-modal" onclick="this.style.display='none'">
     <div class="kofi-content" onclick="event.stopPropagation()">
         <h3 style="margin-bottom:10px">Support Project</h3>
@@ -105,13 +121,13 @@ const app = {
     cvs: document.getElementById('canvas'),
     ctx: document.getElementById('canvas').getContext('2d'),
     img: null, fname: '', rawImgData: null,
+    currentSlot: 0,
     st: { x:0, y:0, sc:1, rot:0, ly:0, mode:'line', th:8, alpha:0.7, col:'#9333ea', paths: [], notes: [] },
     pointers: new Map(), drag: null, lastD: 0,
 
     init() {
         this.resize();
         window.onresize = () => this.resize();
-        window.addEventListener('keydown', e => this.onKey(e));
         this.cvs.addEventListener('pointerdown', e => this.onDown(e));
         window.addEventListener('pointermove', e => this.onMove(e));
         window.addEventListener('pointerup', () => { this.pointers.clear(); this.drag = null; this.save(); });
@@ -120,26 +136,71 @@ const app = {
         if (window.PRELOADED_STATE && window.PRELOADED_IMAGE) {
             this.st = window.PRELOADED_STATE;
             this.rawImgData = window.PRELOADED_IMAGE;
-            const i = new Image();
-            i.onload = () => {
-                this.img = i;
-                document.getElementById('sizeInp').value = this.st.th;
-                document.getElementById('alphaInp').value = this.st.alpha;
-            };
-            i.src = this.rawImgData;
+            this.loadImg(this.rawImgData);
+        } else {
+            const saved = localStorage.getItem('slot_0');
+            if (saved) {
+                const data = JSON.parse(saved);
+                this.st = data.st;
+                this.rawImgData = data.img;
+                this.fname = data.name;
+                if (this.rawImgData) this.loadImg(this.rawImgData);
+            }
         }
         this.loop();
     },
 
-    resize() { this.cvs.width = window.innerWidth; this.cvs.height = window.innerHeight; },
-    onKey(e) { if (e.key === 'ArrowUp') this.st.ly -= 10; if (e.key === 'ArrowDown') this.st.ly += 10; this.save(); },
+    resize() { this.cvs.width = window.innerWidth; this.cvs.height = window.innerHeight - 50; },
 
     hideKeyboard() {
-        if (document.activeElement && document.activeElement.tagName !== 'BODY') {
-            document.activeElement.blur();
+        if (document.activeElement && document.activeElement.tagName !== 'BODY') document.activeElement.blur();
+        const s = window.getSelection(); if (s) s.removeAllRanges();
+    },
+
+    switchSlot(idx) {
+        if (this.currentSlot === idx) return;
+        this.save();
+        
+        this.currentSlot = idx;
+        document.querySelectorAll('.tab').forEach((t, i) => t.className = i === idx ? 'tab active' : 'tab');
+
+        const saved = localStorage.getItem('slot_' + idx);
+        if (saved) {
+            const data = JSON.parse(saved);
+            this.st = data.st;
+            this.rawImgData = data.img;
+            this.fname = data.name;
+            if (this.rawImgData) {
+                const i = new Image();
+                i.onload = () => { this.img = i; this.updateUIFromState(); };
+                i.src = this.rawImgData;
+            } else {
+                this.img = null;
+            }
+        } else {
+            this.st = { x:0, y:0, sc:1, rot:0, ly:0, mode:'line', th:8, alpha:0.7, col:'#9333ea', paths: [], notes: [] };
+            this.img = null; this.rawImgData = null; this.fname = '';
         }
-        const selection = window.getSelection();
-        if (selection) selection.removeAllRanges();
+        this.setMode(this.st.mode);
+    },
+
+    loadImg(data) {
+        const i = new Image();
+        i.onload = () => { 
+            this.img = i; 
+            if (!this.st.sc || this.st.sc === 1) {
+                this.st.sc = Math.min(this.cvs.width/i.width, this.cvs.height/i.height)*0.8;
+                this.st.x = this.cvs.width/2;
+                this.st.y = this.cvs.height/2;
+            }
+            this.updateUIFromState(); 
+        };
+        i.src = data;
+    },
+
+    updateUIFromState() {
+        document.getElementById('sizeInp').value = this.st.th;
+        document.getElementById('alphaInp').value = this.st.alpha;
     },
 
     toLocal(ex, ey) {
@@ -152,16 +213,12 @@ const app = {
     onDown(e) {
         this.pointers.set(e.pointerId, e);
         const p = this.toLocal(e.clientX, e.clientY);
-        
         this.hideKeyboard();
 
         if (this.st.mode === 'text') {
             setTimeout(() => {
                 const txt = prompt("Note:");
-                if (txt) {
-                    this.st.notes.push({ x: p.x, y: p.y, t: txt, c: this.st.col });
-                    this.save();
-                }
+                if (txt) { this.st.notes.push({ x: p.x, y: p.y, t: txt, c: this.st.col }); this.save(); }
                 this.setMode('line');
                 this.hideKeyboard();
             }, 50);
@@ -220,8 +277,7 @@ const app = {
             if (p.s) { ctx.beginPath(); ctx.strokeStyle = p.col; ctx.globalAlpha = p.alpha || 0.7; ctx.lineWidth = p.th * st.sc; ctx.moveTo(p.x * st.sc, p.y * st.sc); }
             else { ctx.lineTo(p.x * st.sc, p.y * st.sc); if (!st.paths[i+1] || st.paths[i+1].s) { ctx.stroke(); } }
         });
-        ctx.globalAlpha = 1;
-        ctx.font = "bold 18px sans-serif";
+        ctx.globalAlpha = 1; ctx.font = "bold 18px sans-serif";
         st.notes.forEach(n => { ctx.fillStyle = n.c; ctx.fillText(n.t, n.x * st.sc, n.y * st.sc); });
         ctx.restore();
         if (st.mode === 'line') {
@@ -232,7 +288,7 @@ const app = {
     },
 
     loop() { this.render(); requestAnimationFrame(() => this.loop()); },
-    save() { if (this.fname && this.fname !== "Saved_Project") localStorage.setItem('prj_' + this.fname, JSON.stringify(this.st)); },
+    save() { localStorage.setItem('slot_' + this.currentSlot, JSON.stringify({st: this.st, img: this.rawImgData, name: this.fname})); },
     toggleUI() { document.getElementById('ui').classList.toggle('hidden'); },
     showKofi() { document.getElementById('kofi-modal').style.display = 'flex'; },
     setMode(m) { this.st.mode = m; document.getElementById('bL').className = 'btn'+(m==='line'?' active':''); document.getElementById('bD').className = 'btn'+(m==='draw'?' active':''); document.getElementById('bT').className = 'btn'+(m==='text'?' active':''); },
@@ -242,46 +298,26 @@ const app = {
     
     clear() { 
         const choice = prompt("What to clear?\n1 - All\n2 - Drawings only\n3 - Notes only\n(Enter the number or press Cancel)");
-        if (choice === "1") {
-            this.st.paths = [];
-            this.st.notes = [];
-        } else if (choice === "2") {
-            this.st.paths = [];
-        } else if (choice === "3") {
-            this.st.notes = [];
-        }
+        if (choice === "1") { this.st.paths = []; this.st.notes = []; }
+        else if (choice === "2") { this.st.paths = []; }
+        else if (choice === "3") { this.st.notes = []; }
         if (choice) this.save();
     },
     
     saveAsFile() {
         if (!this.rawImgData) { alert("Please load an image first!"); return; }
-        const name = prompt("Save name:");
-        if (!name) return;
+        const name = prompt("Save name:"); if (!name) return;
         let docClone = document.documentElement.cloneNode(true);
-        let loaderScript = docClone.querySelector('#app-state-loader');
-        loaderScript.textContent = `window.PRELOADED_STATE = ${JSON.stringify(this.st)}; window.PRELOADED_IMAGE = "${this.rawImgData}";`;
+        docClone.querySelector('#app-state-loader').textContent = `window.PRELOADED_STATE = ${JSON.stringify(this.st)}; window.PRELOADED_IMAGE = "${this.rawImgData}";`;
         const blob = new Blob([docClone.outerHTML], {type: 'text/html'});
-        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-        a.download = name + ".html"; a.click();
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name + ".html"; a.click();
     },
 
     hFile(input) {
         const f = input.files[0]; if (!f) return;
         this.fname = f.name;
         const r = new FileReader();
-        r.onload = e => {
-            this.rawImgData = e.target.result;
-            const i = new Image();
-            i.onload = () => {
-                this.img = i;
-                const sv = localStorage.getItem('prj_' + this.fname);
-                if (sv) Object.assign(this.st, JSON.parse(sv));
-                else { this.st.sc = Math.min(this.cvs.width/i.width, this.cvs.height/i.height)*0.8; this.st.x = this.cvs.width/2; this.st.y = this.cvs.height/2; this.st.ly = 0; }
-                document.getElementById('sizeInp').value = this.st.th;
-                document.getElementById('alphaInp').value = this.st.alpha;
-            };
-            i.src = this.rawImgData;
-        };
+        r.onload = e => { this.rawImgData = e.target.result; this.loadImg(this.rawImgData); this.save(); };
         r.readAsDataURL(f);
     }
 };
