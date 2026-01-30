@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>RowMaster Pro</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="icon" type="image/png" href="icon.png">
+    <meta name="theme-color" content="#9333ea">
+
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; touch-action: none; -webkit-user-select: none; }
         body { background: #0b0b0b; color: #fff; height: 100dvh; width: 100vw; overflow: hidden; font-family: sans-serif; display: flex; flex-direction: column; }
@@ -141,6 +147,13 @@
 </script>
 
 <script>
+// 2. ДОБАВЛЕНО: Регистрация PWA (Service Worker)
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js')
+        .then(() => console.log('Service Worker Registered'))
+        .catch(err => console.error('Service Worker Error:', err));
+}
+
 const app = {
     cvs: document.getElementById('canvas'),
     ctx: document.getElementById('canvas').getContext('2d'),
